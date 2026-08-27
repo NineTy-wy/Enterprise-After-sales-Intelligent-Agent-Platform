@@ -5,10 +5,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 /**
  * 全局异常处理器。
@@ -59,6 +62,40 @@ public class GlobalExceptionHandler {
                 .map(this::formatFieldError)
                 .orElse(ErrorCode.INVALID_REQUEST.getMessage());
 
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.failure(
+                        ErrorCode.INVALID_REQUEST.getCode(),
+                        message
+                ));
+    }
+
+    /**
+     * 处理 JSON 语法错误、枚举值错误等请求体解析异常。
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableMessage(
+            HttpMessageNotReadableException exception) {
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.failure(
+                        ErrorCode.INVALID_REQUEST.getCode(),
+                        "请求体格式错误或字段值不合法"
+                ));
+    }
+
+    /**
+     * 处理 multipart 请求缺少文件和文件超限。
+     */
+    @ExceptionHandler({
+            MissingServletRequestPartException.class,
+            MaxUploadSizeExceededException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleUploadException(
+            Exception exception) {
+        String message = exception instanceof MaxUploadSizeExceededException
+                ? "上传文件超过系统大小限制"
+                : "上传文件不能为空";
         return ResponseEntity
                 .badRequest()
                 .body(ApiResponse.failure(

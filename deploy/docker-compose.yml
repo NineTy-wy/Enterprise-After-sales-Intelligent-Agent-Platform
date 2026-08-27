@@ -1,0 +1,196 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-platform-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agent_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-agent_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent_password}
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: agent-platform-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: agent-platform-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-agent_user}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-agent_password}
+      TZ: Asia/Shanghai
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
+    container_name: agent-platform-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+      TZ: Asia/Shanghai
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    container_name: agent-platform-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  agent-service:
+    build:
+      context: ../agent-service
+    container_name: agent-platform-agent
+    restart: unless-stopped
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-hash}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-128}
+      VECTOR_STORE: qdrant
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-after_sales_chunks}
+      STORAGE_ROOT: /data/files
+      STORAGE_MODE: minio
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-agent-platform}
+      BACKEND_SERVICE_URL: http://backend-spring:8080
+      REDIS_URL: redis://redis:6379/0
+      AGENT_SERVICE_TOKEN: ${AGENT_SERVICE_TOKEN:-}
+      EVALUATION_FILE: /app/data/evaluations.jsonl
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-30}
+    ports:
+      - "8000:8000"
+    volumes:
+      - agent_files:/data/files
+      - agent_runtime_data:/app/data
+    depends_on:
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  backend-spring:
+    build:
+      context: ../backend-spring
+    container_name: agent-platform-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres,rabbit
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-agent_platform}
+      DB_USERNAME: ${POSTGRES_USER:-agent_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-agent_password}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-agent_user}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-agent_password}
+      MESSAGING_ENABLED: "true"
+      DEMO_USER_ENABLED: ${DEMO_USER_ENABLED:-true}
+      DEMO_TENANT_ID: ${DEMO_TENANT_ID:-tenant_demo}
+      DEMO_USERNAME: ${DEMO_USERNAME:-demo}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-demo123456}
+      DEMO_DISPLAY_NAME: ${DEMO_DISPLAY_NAME:-演示用户}
+      STORAGE_MODE: minio
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-agent-platform}
+      AGENT_MODE: http
+      AGENT_SERVICE_BASE_URL: http://agent-service:8000
+      AGENT_SERVICE_TOKEN: ${AGENT_SERVICE_TOKEN:-}
+      APP_SECURITY_ENABLED: ${APP_SECURITY_ENABLED:-false}
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-to-a-random-value-at-least-32-bytes}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost}
+      APP_SECURITY_SENSITIVE_TERMS: ${APP_SECURITY_SENSITIVE_TERMS:-身份证,银行卡,密码,secret,api_key}
+      APP_STORAGE_LOCAL_ROOT: /data/files
+    ports:
+      - "8080:8080"
+    volumes:
+      - agent_files:/data/files
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      agent-service:
+        condition: service_healthy
+
+  frontend-web:
+    build:
+      context: ../frontend-web
+    container_name: agent-platform-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend-spring:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  minio_data:
+  qdrant_data:
+  agent_files:
+  agent_runtime_data:

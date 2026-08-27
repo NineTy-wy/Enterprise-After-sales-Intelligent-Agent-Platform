@@ -1,0 +1,108 @@
+spring:
+  application:
+    name: backend-spring
+  profiles:
+    default: local
+  servlet:
+    multipart:
+      max-file-size: ${APP_MAX_FILE_SIZE:50MB}
+      max-request-size: ${APP_MAX_REQUEST_SIZE:60MB}
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+
+app:
+  identity:
+    demo-tenant-id: ${DEMO_TENANT_ID:tenant_demo}
+    demo-user-id: ${DEMO_USER_ID:user_demo}
+    demo-username: ${DEMO_USERNAME:demo}
+    demo-password: ${DEMO_PASSWORD:demo123456}
+    demo-display-name: ${DEMO_DISPLAY_NAME:演示用户}
+    demo-user-enabled: ${DEMO_USER_ENABLED:true}
+  security:
+    enabled: ${APP_SECURITY_ENABLED:false}
+    jwt-secret: ${JWT_SECRET:change-this-secret-to-a-random-value-at-least-32-bytes}
+    token-expiration-minutes: ${JWT_EXPIRATION_MINUTES:120}
+    sensitive-terms: ${APP_SECURITY_SENSITIVE_TERMS:身份证,银行卡,密码,secret,api_key}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  storage:
+    mode: ${STORAGE_MODE:local}
+    local-root: ${APP_STORAGE_LOCAL_ROOT:./data/files}
+    max-file-size-bytes: ${APP_STORAGE_MAX_FILE_SIZE_BYTES:52428800}
+    minio:
+      endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+      access-key: ${MINIO_ACCESS_KEY:minioadmin}
+      secret-key: ${MINIO_SECRET_KEY:minioadmin}
+      bucket: ${MINIO_BUCKET:agent-platform}
+  agent:
+    mode: ${AGENT_MODE:mock}
+    base-url: ${AGENT_SERVICE_BASE_URL:http://localhost:8000}
+    connect-timeout-ms: ${AGENT_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${AGENT_READ_TIMEOUT_MS:30000}
+    service-token: ${AGENT_SERVICE_TOKEN:}
+    cache-enabled: ${AGENT_CACHE_ENABLED:true}
+    cache-ttl-seconds: ${AGENT_CACHE_TTL_SECONDS:30}
+  messaging:
+    enabled: ${MESSAGING_ENABLED:false}
+    exchange: ${RABBITMQ_EXCHANGE:agent-platform.exchange}
+    document-processing-queue: ${RABBITMQ_DOCUMENT_QUEUE:agent-platform.document-processing}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/agent_platform}
+    username: ${DB_USERNAME:agent_user}
+    password: ${DB_PASSWORD:agent_password}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:3000}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Shanghai
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+---
+spring:
+  config:
+    activate:
+      on-profile: rabbit
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:agent_user}
+    password: ${RABBITMQ_PASSWORD:agent_password}

@@ -1,6 +1,9 @@
 package com.agentplatform.backend.knowledge.api;
 
+import com.agentplatform.backend.audit.application.AuditService;
 import com.agentplatform.backend.common.api.ApiResponse;
+import com.agentplatform.backend.common.security.CurrentUser;
+import com.agentplatform.backend.common.security.CurrentUserProvider;
 import com.agentplatform.backend.knowledge.api.dto.CreateKnowledgeBaseRequest;
 import com.agentplatform.backend.knowledge.api.dto.KnowledgeBaseResponse;
 import com.agentplatform.backend.knowledge.application.KnowledgeBaseService;
@@ -24,20 +27,26 @@ import java.util.List;
 @RequestMapping("/api/knowledge-bases")
 public class KnowledgeBaseController {
 
-    /** 当前阶段使用固定租户 ID，后续接入登录后从 JWT 中获取。 */
-    private static final String DEMO_TENANT_ID = "tenant_demo";
-
-    /** 当前阶段使用固定用户 ID，后续接入登录后从认证上下文中获取。 */
-    private static final String DEMO_USER_ID = "user_demo";
-
     /** 知识库应用服务，承载创建和查询等业务用例。 */
     private final KnowledgeBaseService knowledgeBaseService;
+
+    /** 当前用户上下文，安全关闭时会返回本地演示身份。 */
+    private final CurrentUserProvider currentUserProvider;
+
+    /** 记录创建、归档等关键动作，满足企业审计要求。 */
+    private final AuditService auditService;
 
     /**
      * 使用构造方法注入 Service，保持依赖清晰且便于测试。
      */
-    public KnowledgeBaseController(KnowledgeBaseService knowledgeBaseService) {
+    public KnowledgeBaseController(
+            KnowledgeBaseService knowledgeBaseService,
+            CurrentUserProvider currentUserProvider,
+            AuditService auditService
+    ) {
         this.knowledgeBaseService = knowledgeBaseService;
+        this.currentUserProvider = currentUserProvider;
+        this.auditService = auditService;
     }
 
     /**
@@ -49,10 +58,19 @@ public class KnowledgeBaseController {
     public ApiResponse<KnowledgeBaseResponse> createKnowledgeBase(
             @Valid @RequestBody CreateKnowledgeBaseRequest request
     ) {
+        CurrentUser currentUser = currentUserProvider.currentUser();
         KnowledgeBaseResponse response = knowledgeBaseService.createKnowledgeBase(
-                DEMO_TENANT_ID,
-                DEMO_USER_ID,
+                currentUser.tenantId(),
+                currentUser.userId(),
                 request
+        );
+        auditService.record(
+                currentUser.tenantId(),
+                currentUser.userId(),
+                "CREATE",
+                "KNOWLEDGE_BASE",
+                response.id(),
+                "{\"name\":\"" + request.name() + "\"}"
         );
         return ApiResponse.success(response);
     }
@@ -62,8 +80,9 @@ public class KnowledgeBaseController {
      */
     @GetMapping
     public ApiResponse<List<KnowledgeBaseResponse>> listKnowledgeBases() {
+        CurrentUser currentUser = currentUserProvider.currentUser();
         List<KnowledgeBaseResponse> responses =
-                knowledgeBaseService.listKnowledgeBases(DEMO_TENANT_ID);
+                knowledgeBaseService.listKnowledgeBases(currentUser.tenantId());
         return ApiResponse.success(responses);
     }
 
@@ -77,8 +96,9 @@ public class KnowledgeBaseController {
     public ApiResponse<KnowledgeBaseResponse> getKnowledgeBase(
             @PathVariable String knowledgeBaseId
     ) {
+        CurrentUser currentUser = currentUserProvider.currentUser();
         KnowledgeBaseResponse response = knowledgeBaseService.getKnowledgeBase(
-                DEMO_TENANT_ID,
+                currentUser.tenantId(),
                 knowledgeBaseId
         );
         return ApiResponse.success(response);
@@ -94,10 +114,19 @@ public class KnowledgeBaseController {
     public ApiResponse<Void> archiveKnowledgeBase(
             @PathVariable String knowledgeBaseId
     ) {
+        CurrentUser currentUser = currentUserProvider.currentUser();
         knowledgeBaseService.archiveKnowledgeBase(
-                DEMO_TENANT_ID,
-                DEMO_USER_ID,
+                currentUser.tenantId(),
+                currentUser.userId(),
                 knowledgeBaseId
+        );
+        auditService.record(
+                currentUser.tenantId(),
+                currentUser.userId(),
+                "ARCHIVE",
+                "KNOWLEDGE_BASE",
+                knowledgeBaseId,
+                "{}"
         );
         return ApiResponse.success();
     }

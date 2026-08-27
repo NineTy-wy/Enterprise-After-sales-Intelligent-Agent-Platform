@@ -86,11 +86,50 @@ public class Document {
     }
 
     /**
+     * 从持久化记录恢复文档领域对象。
+     */
+    public static Document reconstitute(
+            String id,
+            String tenantId,
+            String knowledgeBaseId,
+            String fileName,
+            String fileType,
+            long fileSize,
+            String storagePath,
+            DocumentStatus status,
+            String failureReason,
+            String uploadedBy,
+            LocalDateTime uploadedAt,
+            LocalDateTime updatedAt
+    ) {
+        Document document = new Document();
+        document.id = id;
+        document.tenantId = tenantId;
+        document.knowledgeBaseId = knowledgeBaseId;
+        document.fileName = fileName;
+        document.fileType = fileType;
+        document.fileSize = fileSize;
+        document.storagePath = storagePath;
+        document.status = status;
+        document.failureReason = failureReason;
+        document.uploadedBy = uploadedBy;
+        document.uploadedAt = uploadedAt;
+        document.updatedAt = updatedAt;
+        return document;
+    }
+
+    /**
      * 将文档标记为处理中。
      */
     public void markProcessing() {
-        ensureStatus(DocumentStatus.UPLOADED, "只有已上传的文档才能进入处理中状态");
+        if (!Objects.equals(this.status, DocumentStatus.UPLOADED)
+                && !Objects.equals(this.status, DocumentStatus.FAILED)) {
+            throw new IllegalStateException(
+                    "只有已上传或处理失败的文档才能进入处理中状态"
+            );
+        }
         this.status = DocumentStatus.PROCESSING;
+        this.failureReason = null;
         this.updatedAt = LocalDateTime.now();
     }
 

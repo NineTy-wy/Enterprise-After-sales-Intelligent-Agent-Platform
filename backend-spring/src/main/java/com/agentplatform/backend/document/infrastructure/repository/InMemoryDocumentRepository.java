@@ -2,6 +2,7 @@ package com.agentplatform.backend.document.infrastructure.repository;
 
 import com.agentplatform.backend.document.domain.Document;
 import com.agentplatform.backend.document.domain.DocumentRepository;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.concurrent.ConcurrentMap;
  * 后续接入 PostgreSQL 后，可新增数据库实现替换当前 Bean。</p>
  */
 @Repository
+@Profile("local")
 public class InMemoryDocumentRepository implements DocumentRepository {
 
     /**

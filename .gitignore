@@ -1,0 +1,28 @@
+# Java / Maven
+backend-spring/target/
+backend-spring/.mvn/codex-verify-settings.xml
+.maven-repository/
+.maven/
+
+# Node / Vite
+frontend-web/node_modules/
+frontend-web/dist/
+frontend-web/.vite/
+
+# Python
+agent-service/__pycache__/
+agent-service/**/__pycache__/
+*.py[cod]
+
+# Runtime data and local secrets
+backend-spring/data/
+agent-service/data/
+deploy/.env
+agent-service/.env
+
+# IDE and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

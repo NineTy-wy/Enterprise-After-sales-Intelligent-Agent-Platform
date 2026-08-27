@@ -2,6 +2,7 @@ package com.agentplatform.backend.knowledge.infrastructure.repository;
 
 import com.agentplatform.backend.knowledge.domain.KnowledgeBase;
 import com.agentplatform.backend.knowledge.domain.KnowledgeBaseRepository;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import java.util.concurrent.ConcurrentMap;
  * 后续接入 PostgreSQL 后，只需要新增数据库实现并替换 Bean 即可。</p>
  */
 @Repository
+@Profile("local")
 public class InMemoryKnowledgeBaseRepository implements KnowledgeBaseRepository {
 
     /**

@@ -8,6 +8,7 @@ import com.agentplatform.backend.knowledge.application.KnowledgeBaseService;
 import com.agentplatform.backend.knowledge.domain.KnowledgeBase;
 import com.agentplatform.backend.knowledge.domain.KnowledgeBaseRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 
@@ -53,7 +54,16 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 userId
         );
 
-        KnowledgeBase savedKnowledgeBase = knowledgeBaseRepository.save(knowledgeBase);
+        KnowledgeBase savedKnowledgeBase;
+        try {
+            savedKnowledgeBase = knowledgeBaseRepository.save(knowledgeBase);
+        } catch (DataIntegrityViolationException exception) {
+            // 预检查解决常规场景，数据库唯一约束兜底并发请求。
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "当前租户下已存在同名知识库"
+            );
+        }
         return KnowledgeBaseResponse.from(savedKnowledgeBase);
     }
 

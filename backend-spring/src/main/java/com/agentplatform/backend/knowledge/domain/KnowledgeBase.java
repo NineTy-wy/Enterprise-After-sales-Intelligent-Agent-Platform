@@ -68,6 +68,34 @@ public class KnowledgeBase {
     }
 
     /**
+     * 从持久化记录恢复领域对象。
+     *
+     * <p>创建和恢复是两个不同的业务动作：创建会生成 ID 和初始时间，
+     * 恢复则必须保留数据库中的原始值。</p>
+     */
+    public static KnowledgeBase reconstitute(
+            String id,
+            String tenantId,
+            String name,
+            String description,
+            KnowledgeBaseStatus status,
+            String createdBy,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt
+    ) {
+        KnowledgeBase knowledgeBase = new KnowledgeBase();
+        knowledgeBase.id = id;
+        knowledgeBase.tenantId = tenantId;
+        knowledgeBase.name = name;
+        knowledgeBase.description = description;
+        knowledgeBase.status = status;
+        knowledgeBase.createdBy = createdBy;
+        knowledgeBase.createdAt = createdAt;
+        knowledgeBase.updatedAt = updatedAt;
+        return knowledgeBase;
+    }
+
+    /**
      * 修改知识库基础信息。
      *
      * <p>这里没有直接暴露 setName、setDescription 给业务层随意调用，
