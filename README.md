@@ -412,14 +412,6 @@ docker compose --env-file deploy\.env -f deploy\docker-compose.yml config --quie
 - 增加前端管理页，例如用户管理、角色管理、知识库权限配置。
 - 增加客户门户，例如客户提交问题、查看工单进度、满意度评价。
 
-## 简历描述参考
-
-```text
-企业售后智能 Agent 平台
-
-基于 Spring Boot + FastAPI + React 构建企业售后智能支持平台，支持多租户知识库、文档异步解析、RAG 检索增强问答、售后工单协同和 Agent 工具调用。系统使用 PostgreSQL、RabbitMQ、MinIO、Qdrant、Redis 和 Docker Compose 完成本地全栈部署，覆盖文档解析、Chunk 切分、Embedding、Hybrid Search、Rerank、上下文压缩、ReAct、Plan & Execute、Tool Calling、敏感信息过滤、Token 控制、缓存和模型降级等 AI 应用工程能力。
-```
-
 ## 项目状态
 
 - 本地 Docker 全栈部署：已完成
@@ -430,4 +422,3 @@ docker compose --env-file deploy\.env -f deploy\docker-compose.yml config --quie
 - Plan & Execute 问答：已验证
 - 工单创建与持久化：已验证
 - 真实大模型接入：预留配置，需提供实际模型 Key
-
